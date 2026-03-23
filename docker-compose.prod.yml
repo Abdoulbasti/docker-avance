@@ -1,0 +1,79 @@
+services:
+  mongodb:
+    image: mongo:4.4
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-password}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - backend
+
+  auth-service:
+    image: ${CI_REGISTRY_IMAGE}/auth-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-password}@mongodb:27017/mydatabase?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
+  product-service:
+    image: ${CI_REGISTRY_IMAGE}/product-service:${IMAGE_TAG:-latest}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-password}@mongodb:27017/mydatabase?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
+  order-service:
+    image: ${CI_REGISTRY_IMAGE}/order-service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-password}@mongodb:27017/mydatabase?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      VITE_PRODUCT_SERVICE_URL: http://product-service:3000
+    depends_on:
+      - mongodb
+      - product-service
+    networks:
+      - backend
+
+  frontend:
+    image: ${CI_REGISTRY_IMAGE}/frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      VITE_AUTH_SERVICE_URL: http://auth-service:3001
+      VITE_PRODUCT_SERVICE_URL: http://product-service:3000
+      VITE_ORDER_SERVICE_URL: http://order-service:3002
+    depends_on:
+      - auth-service
+      - product-service
+      - order-service
+    networks:
+      - backend
+
+volumes:
+  mongo-data:
+
+networks:
+  backend:
+    driver: bridge

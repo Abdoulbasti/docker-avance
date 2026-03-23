@@ -1,0 +1,68 @@
+services:
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/mydatabase?authSource=admin
+    depends_on:
+      - mongodb
+
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/mydatabase?authSource=admin
+    depends_on:
+      - mongodb
+
+  product-service:
+    build:
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/mydatabase?authSource=admin
+    depends_on:
+      - mongodb
+
+  init-products:
+    image: alpine/curl
+    volumes:
+      - ./scripts/init-products.sh:/init-products.sh
+    environment:
+      - API_URL=http://product-service:3000/api
+    command: ["sh", "/init-products.sh"]
+    depends_on:
+      - product-service
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - order-service
+      - product-service
+      
+volumes:
+  mongo-data:
