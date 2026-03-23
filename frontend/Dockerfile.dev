@@ -1,0 +1,17 @@
+FROM node:18-bookworm-slim
+
+WORKDIR /app
+
+COPY --chown=node:node package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi \
+	&& npm cache clean --force
+
+COPY --chown=node:node . .
+
+RUN chown -R node:node /app
+
+USER node
+
+EXPOSE 8080
+
+CMD ["npm", "run", "dev"]
