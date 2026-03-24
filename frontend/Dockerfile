@@ -1,4 +1,4 @@
-FROM node:25-alpine3.22 AS build
+FROM node:25-alpine3.22 AS node-builded
 
 WORKDIR /app
 
@@ -16,8 +16,8 @@ WORKDIR /app
 COPY package*.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/server.cjs ./server.cjs
+COPY --from=node-builded /app/dist ./dist
+COPY --from=node-builded /app/server.cjs ./server.cjs
 
 RUN chown -R node:node /app
 USER node
